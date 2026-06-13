@@ -2638,6 +2638,7 @@ class BaseSDTrainProcess(BaseTrainProcess):
         if self.train_config.free_u:
             self.sd.pipeline.disable_freeu()
         if self.accelerator.is_main_process:
+            self.save(self.step_num)
             self.save()
         if not self.train_config.disable_sampling:
             self.sample(self.step_num)
