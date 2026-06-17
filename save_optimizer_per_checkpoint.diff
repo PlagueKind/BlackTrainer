@@ -1,0 +1,84 @@
+diff --git a/jobs/process/BaseSDTrainProcess.py b/jobs/process/BaseSDTrainProcess.py
+index cb38f32..7bbbac8 100644
+--- a/jobs/process/BaseSDTrainProcess.py
++++ b/jobs/process/BaseSDTrainProcess.py
+@@ -441,6 +441,11 @@ class BaseSDTrainProcess(BaseTrainProcess):
+             # check for critic files
+             critic_pattern = f"CRITIC_{self.job.name}_*"
+             critic_items = glob.glob(os.path.join(self.save_root, critic_pattern))
++            optimizer_files = []
++            if self.save_config.save_optimizer_per_checkpoint:
++                optimizer_pattern = "optimizer_*"
++                optimizer_items = glob.glob(os.path.join(self.save_root, optimizer_pattern))
++                optimizer_files = [f for f in optimizer_items if f.endswith('.pt')]
+ 
+             # Sort the lists by creation time if they are not empty
+             if safetensors_files:
+@@ -453,6 +458,8 @@ class BaseSDTrainProcess(BaseTrainProcess):
+                 embed_files.sort(key=os.path.getctime)
+             if critic_items:
+                 critic_items.sort(key=os.path.getctime)
++            if optimizer_files:
++                optimizer_files.sort(key=os.path.getctime)
+ 
+             # Combine and sort the lists
+             combined_items = safetensors_files + directories + pt_files
+@@ -470,8 +477,9 @@ class BaseSDTrainProcess(BaseTrainProcess):
+             directories_to_remove = directories[:-num_saves_to_keep] if directories else []
+             embeddings_to_remove = embed_files[:-num_saves_to_keep] if embed_files else []
+             critic_to_remove = critic_items[:-num_saves_to_keep] if critic_items else []
++            optimizer_to_remove = optimizer_files[:-num_saves_to_keep] if optimizer_files else []
+ 
+-            items_to_remove = safetensors_to_remove + pt_files_to_remove + directories_to_remove + embeddings_to_remove + critic_to_remove
++            items_to_remove = safetensors_to_remove + pt_files_to_remove + directories_to_remove + embeddings_to_remove + critic_to_remove + optimizer_to_remove
+ 
+             # remove all but the latest max_step_saves_to_keep
+             # items_to_remove = combined_items[:-num_saves_to_keep]
+@@ -694,14 +702,21 @@ class BaseSDTrainProcess(BaseTrainProcess):
+         # save optimizer
+         if self.optimizer is not None:
+             try:
+-                filename = f'optimizer.pt'
+-                file_path = os.path.join(self.save_root, filename)
+                 try:
+                     state_dict = unwrap_model(self.optimizer).state_dict()
+                 except Exception as e:
+                     state_dict = self.optimizer.state_dict()
++
++                filename = f'optimizer.pt'
++                file_path = os.path.join(self.save_root, filename)
+                 torch.save(state_dict, file_path)
+                 print_acc(f"Saved optimizer to {file_path}")
++
++                if self.save_config.save_optimizer_per_checkpoint and step is not None:
++                    step_optimizer_filename = f"optimizer_{str(step).zfill(9)}.pt"
++                    step_optimizer_file_path = os.path.join(self.save_root, step_optimizer_filename)
++                    torch.save(state_dict, step_optimizer_file_path)
++                    print_acc(f"Saved checkpoint optimizer to {step_optimizer_file_path}")
+             except Exception as e:
+                 print_acc(e)
+                 print_acc("Could not save optimizer")
+@@ -2006,6 +2021,11 @@ class BaseSDTrainProcess(BaseTrainProcess):
+         # check if it exists
+         optimizer_state_filename = f'optimizer.pt'
+         optimizer_state_file_path = os.path.join(self.save_root, optimizer_state_filename)
++        if self.save_config.save_optimizer_per_checkpoint:
++            step_optimizer_state_filename = f"optimizer_{str(self.step_num).zfill(9)}.pt"
++            step_optimizer_state_file_path = os.path.join(self.save_root, step_optimizer_state_filename)
++            if os.path.exists(step_optimizer_state_file_path):
++                optimizer_state_file_path = step_optimizer_state_file_path
+         if os.path.exists(optimizer_state_file_path):
+             # try to load
+             # previous param groups
+diff --git a/toolkit/config_modules.py b/toolkit/config_modules.py
+index 31d5421..f704a6b 100644
+--- a/toolkit/config_modules.py
++++ b/toolkit/config_modules.py
+@@ -25,6 +25,7 @@ class SaveConfig:
+         self.save_every: int = kwargs.get('save_every', 1000)
+         self.dtype: str = kwargs.get('dtype', 'float16')
+         self.max_step_saves_to_keep: int = kwargs.get('max_step_saves_to_keep', 5)
++        self.save_optimizer_per_checkpoint: bool = kwargs.get('save_optimizer_per_checkpoint', False)
+         self.save_format: SaveFormat = kwargs.get('save_format', 'safetensors')
+         if self.save_format not in ['safetensors', 'diffusers']:
+             raise ValueError(f"save_format must be safetensors or diffusers, got {self.save_format}")
