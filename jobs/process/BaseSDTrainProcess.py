@@ -426,6 +426,11 @@ class BaseSDTrainProcess(BaseTrainProcess):
             # check for critic files
             critic_pattern = f"CRITIC_{self.job.name}_*"
             critic_items = glob.glob(os.path.join(self.save_root, critic_pattern))
+            optimizer_files = []
+            if self.save_config.save_optimizer_per_checkpoint:
+                optimizer_pattern = "optimizer_*"
+                optimizer_items = glob.glob(os.path.join(self.save_root, optimizer_pattern))
+                optimizer_files = [f for f in optimizer_items if f.endswith('.pt')]
 
             # Sort the lists by creation time if they are not empty
             if safetensors_files:
@@ -438,6 +443,8 @@ class BaseSDTrainProcess(BaseTrainProcess):
                 embed_files.sort(key=os.path.getctime)
             if critic_items:
                 critic_items.sort(key=os.path.getctime)
+            if optimizer_files:
+                optimizer_files.sort(key=os.path.getctime)
 
             # Combine and sort the lists
             combined_items = safetensors_files + directories + pt_files
@@ -455,8 +462,9 @@ class BaseSDTrainProcess(BaseTrainProcess):
             directories_to_remove = directories[:-num_saves_to_keep] if directories else []
             embeddings_to_remove = embed_files[:-num_saves_to_keep] if embed_files else []
             critic_to_remove = critic_items[:-num_saves_to_keep] if critic_items else []
+            optimizer_to_remove = optimizer_files[:-num_saves_to_keep] if optimizer_files else []
 
-            items_to_remove = safetensors_to_remove + pt_files_to_remove + directories_to_remove + embeddings_to_remove + critic_to_remove
+            items_to_remove = safetensors_to_remove + pt_files_to_remove + directories_to_remove + embeddings_to_remove + critic_to_remove + optimizer_to_remove
 
             # remove all but the latest max_step_saves_to_keep
             # items_to_remove = combined_items[:-num_saves_to_keep]
@@ -687,14 +695,21 @@ class BaseSDTrainProcess(BaseTrainProcess):
         # save optimizer
         if self.optimizer is not None:
             try:
-                filename = f'optimizer.pt'
-                file_path = os.path.join(self.save_root, filename)
                 try:
                     state_dict = unwrap_model(self.optimizer).state_dict()
                 except Exception as e:
                     state_dict = self.optimizer.state_dict()
+
+                filename = f'optimizer.pt'
+                file_path = os.path.join(self.save_root, filename)
                 torch.save(state_dict, file_path)
                 print_acc(f"Saved optimizer to {file_path}")
+
+                if self.save_config.save_optimizer_per_checkpoint and step is not None:
+                    step_optimizer_filename = f"optimizer_{str(step).zfill(9)}.pt"
+                    step_optimizer_file_path = os.path.join(self.save_root, step_optimizer_filename)
+                    torch.save(state_dict, step_optimizer_file_path)
+                    print_acc(f"Saved checkpoint optimizer to {step_optimizer_file_path}")
             except Exception as e:
                 print_acc(e)
                 print_acc("Could not save optimizer")
@@ -2012,6 +2027,11 @@ class BaseSDTrainProcess(BaseTrainProcess):
         # check if it exists
         optimizer_state_filename = f'optimizer.pt'
         optimizer_state_file_path = os.path.join(self.save_root, optimizer_state_filename)
+        if self.save_config.save_optimizer_per_checkpoint:
+            step_optimizer_state_filename = f"optimizer_{str(self.step_num).zfill(9)}.pt"
+            step_optimizer_state_file_path = os.path.join(self.save_root, step_optimizer_state_filename)
+            if os.path.exists(step_optimizer_state_file_path):
+                optimizer_state_file_path = step_optimizer_state_file_path
         if os.path.exists(optimizer_state_file_path):
             # try to load
             # previous param groups
