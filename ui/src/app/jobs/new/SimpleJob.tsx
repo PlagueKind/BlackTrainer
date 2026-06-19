@@ -968,14 +968,47 @@ export default function SimpleJob({
                         onChange={value => setJobConfig(value, `config.process[0].datasets[${i}].network_weight`)}
                         placeholder="eg. 1.0"
                       />
-                      <NumberInput
-                        label="Num Repeats"
-                        value={dataset.num_repeats || 1}
-                        className="pt-2"
-                        onChange={value => setJobConfig(value, `config.process[0].datasets[${i}].num_repeats`)}
-                        placeholder="eg. 1"
-                        docKey={'dataset.num_repeats'}
-                      />
+                      {(() => {
+                        const resolutions = Array.isArray(dataset.resolution)
+                        ? dataset.resolution
+                        : [];
+
+                        const repeats = Array.isArray(dataset.num_repeats)
+                        ? dataset.num_repeats
+                        : typeof dataset.num_repeats === "number"
+                        ? resolutions.map(() => dataset.num_repeats)
+                        : resolutions.map(() => 1);
+
+                        return (
+                          <div>
+                          <label className="block text-sm font-medium mb-1">
+                          Num Repeats (per resolution)
+                          </label>
+
+                          <div className="flex gap-2 flex-wrap">
+                          {resolutions.map((res, idx) => (
+                            <div key={res} className="flex flex-col items-center gap-1">
+                            <span className="text-xs text-gray-400">{res}px</span>
+
+                            <NumberInput
+                            value={repeats?.[idx] ?? 1}
+                            min={1}
+                            onChange={v => {
+                              const next = [...repeats];
+                              next[idx] = v ?? 1;
+
+                              setJobConfig(
+                                next,
+                                `config.process[0].datasets[${i}].num_repeats`
+                              );
+                            }}
+                            />
+                            </div>
+                          ))}
+                          </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <TextInput
@@ -1116,30 +1149,72 @@ export default function SimpleJob({
                     </div>
                     {!isAudioModel && (
                       <div>
-                        <FormGroup label="Resolutions" className="pt-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            {[
-                              [256, 512, 768, 1024],
-                              [1280, 1328, 1536, 2048],
-                            ].map(resGroup => (
-                              <div key={resGroup[0]} className="space-y-2">
-                                {resGroup.map(res => (
-                                  <Checkbox
-                                    key={res}
-                                    label={res.toString()}
-                                    checked={dataset.resolution.includes(res)}
-                                    onChange={value => {
-                                      const resolutions = dataset.resolution.includes(res)
-                                        ? dataset.resolution.filter(r => r !== res)
-                                        : [...dataset.resolution, res];
-                                      setJobConfig(resolutions, `config.process[0].datasets[${i}].resolution`);
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        </FormGroup>
+                      <FormGroup label="Resolutions" className="pt-2">
+                      <div className="grid grid-cols-2 gap-2">
+                      {[
+                        [256, 512, 768, 1024],
+                        [1280, 1328, 1536, 2048],
+                      ].map(resGroup => (
+                        <div key={resGroup[0]} className="space-y-2">
+                        {resGroup.map(res => {
+                          const currentRes = Array.isArray(dataset.resolution)
+                          ? dataset.resolution
+                          : dataset.resolution != null
+                          ? [dataset.resolution]
+                          : [];
+
+                          const isChecked = currentRes.includes(res);
+
+                          return (
+                            <Checkbox
+                            key={res}
+                            label={res.toString()}
+                            checked={isChecked}
+                            onChange={value => {
+                              const safeRes = Array.isArray(dataset.resolution)
+                              ? dataset.resolution
+                              : dataset.resolution != null
+                              ? [dataset.resolution]
+                              : [];
+
+                              const nextResolutionsUnsorted = safeRes.includes(res)
+                              ? safeRes.filter(r => r !== res)
+                              : [...safeRes, res];
+
+                              const nextResolutions = [...nextResolutionsUnsorted].sort((a, b) => a - b);
+
+                              const oldRepeats = Array.isArray(dataset.num_repeats)
+                              ? dataset.num_repeats
+                              : typeof dataset.num_repeats === "number"
+                              ? [dataset.num_repeats]
+                              : [];
+
+                              const nextRepeats = nextResolutions.map((r) => {
+                                const wasAlreadyPresent = safeRes.includes(r);
+
+                                if (!wasAlreadyPresent) return 1;
+
+                                const oldIndex = safeRes.indexOf(r);
+                                return oldRepeats[oldIndex] ?? 1;
+                              });
+
+                              setJobConfig(
+                                nextResolutions,
+                                `config.process[0].datasets[${i}].resolution`
+                              );
+
+                              setJobConfig(
+                                nextRepeats,
+                                `config.process[0].datasets[${i}].num_repeats`
+                              );
+                            }}
+                            />
+                          );
+                        })}
+                        </div>
+                      ))}
+                      </div>
+                      </FormGroup>
                       </div>
                     )}
                   </div>
