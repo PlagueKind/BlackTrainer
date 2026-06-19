@@ -1042,22 +1042,28 @@ class DatasetConfig:
 
 
 def preprocess_dataset_raw_config(raw_config: List[dict]) -> List[dict]:
-    """
-    This just splits up the datasets by resolutions so you dont have to do it manually
-    :param raw_config:
-    :return:
-    """
-    # split up datasets by resolutions
     new_config = []
     for dataset in raw_config:
         resolution = dataset.get('resolution', 512)
+        num_repeats = dataset.get('num_repeats', 1)
         if isinstance(resolution, list):
             resolution_list = resolution
         else:
             resolution_list = [resolution]
-        for res in resolution_list:
+        # normalize num_repeats to a list aligned with resolutions
+        if isinstance(num_repeats, list):
+            if len(num_repeats) != len(resolution_list):
+                raise ValueError(
+                    f"num_repeats list length ({len(num_repeats)}) must match "
+                    f"resolution list length ({len(resolution_list)})"
+                )
+            repeats_list = num_repeats
+        else:
+            repeats_list = [num_repeats] * len(resolution_list)
+        for res, repeats in zip(resolution_list, repeats_list):
             dataset_copy = dataset.copy()
             dataset_copy['resolution'] = res
+            dataset_copy['num_repeats'] = repeats
             new_config.append(dataset_copy)
     return new_config
 
