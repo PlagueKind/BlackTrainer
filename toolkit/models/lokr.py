@@ -219,14 +219,8 @@ class LokrModule(ToolkitModuleMixin, nn.Module):
 
         self.multiplier = multiplier
         self.org_module = [org_module]
-        weight = make_kron(
-            self.lokr_w1 if self.use_w1 else self.lokr_w1_a@self.lokr_w1_b,
-            (self.lokr_w2 if self.use_w2
-             else make_weight_cp(self.lokr_t2, self.lokr_w2_a, self.lokr_w2_b) if self.cp
-             else self.lokr_w2_a@self.lokr_w2_b),
-            torch.tensor(self.multiplier * self.scale)
-        )
-        assert torch.sum(torch.isnan(weight)) == 0, "weight is nan"
+        for param in self.parameters():
+            assert not torch.isnan(param).any(), "weight is nan"
 
     # Same as locon.py
     def apply_to(self):
