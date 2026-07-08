@@ -1,8 +1,64 @@
-# Ostris AI Toolkit
+# BlackTrainer
 
-AI Toolkit is an easy to use all in one training suite for diffusion models. I try to support all the latest models on consumer grade hardware. Image and video models. It can be run as a GUI or CLI. It is designed to be easy to use but still have every feature imaginable. Free and open source.
+Piggybacking off of Ostris AI-Toolkit. This fork contains addition fixes and optimizations.
 
+## Installation
 
+Requirements:
+- python 3.12 recommended
+- Nvidia GPU with enough ram to do what you need
+- python venv
+- git
+
+Linux:
+```bash
+git clone https://github.com/PlagueKind/BlackTrainer.git
+cd BlackTrainer
+python3.12 -m venv venv
+source venv/bin/activate
+# install torch first cu130 for blackwell, otherwise you can use cu128
+pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+pip install -r requirements.txt
+cd ui
+npm run build_and_start
+```
+Windows:
+
+```bash
+git clone https://github.com/PlagueKind/BlackTrainer.git
+cd BlackTrainer
+python3.12 -m venv venv
+.\venv\Scripts\activate
+pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+pip install -r requirements.txt
+cd ui
+npm run build_and_start
+```
+Then install prebuilt wheels of triton on windows, and flashattention2
+
+https://mjunya.com/flash-attention-prebuild-wheels/?platform=Windows+x86_64
+
+https://github.com/triton-lang/triton-windows
+
+then add the flag to the network section of your config
+
+attention_backend: "flash"
+
+and finally. go into nvidia control panel and disable that dumb system memory fallback option.
+
+## Updating
+Seeing as this is a fork which is kept up to date with upstream, updating is a bit different.
+
+```bash
+#if you have modified models first run (otherwise ignore first command)
+git stash
+#then
+git fetch origin
+git reset --hard origin/main
+
+#the reapply your stash if you have one
+git stash pop
+```
 
 ## Supported Models
 
@@ -66,6 +122,7 @@ AI Toolkit is an easy to use all in one training suite for diffusion models. I t
 ### Experimental
 - [lodestones/Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) (Zeta Chroma)
 
+
 ## Installation
 
 ### Install with the AI Toolkit Manager (experimental)
@@ -87,8 +144,8 @@ The only requirement is **git** (on Windows the manager can even fetch a
 portable git for updates, but you need one installed to clone the repo first).
 
 ```bash
-git clone https://github.com/ostris/ai-toolkit.git
-cd ai-toolkit
+git clone https://github.com/PlagueKind/BlackTrainer.git
+cd BlackTrainer
 ```
 
 Then start the manager with the script for your platform:
@@ -115,42 +172,21 @@ python3 -m manager install   # first-time setup
 python3 -m manager update    # pull updates + sync dependencies
 python3 -m manager launch    # start the UI
 python3 -m manager doctor    # diagnose problems
-```
-
-### Manual installation
-
-Requirements:
-- python >=3.10 (3.12 recommended)
-- Nvidia GPU with enough ram to do what you need
-- python venv
-- git
 
 
-Linux:
-```bash
-git clone https://github.com/ostris/ai-toolkit.git
-cd ai-toolkit
-python3 -m venv venv
-source venv/bin/activate
-# install torch first
-pip3 install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
-pip3 install -r requirements.txt
-```
 
 For devices running **DGX OS** (including DGX Spark), follow [these](dgx_instructions.md) instructions.
 
 
-Windows:
-
-If you are having issues with Windows. I recommend using the easy install script at [https://github.com/Tavris1/AI-Toolkit-Easy-Install](https://github.com/Tavris1/AI-Toolkit-Easy-Install)
-
 ```bash
-git clone https://github.com/ostris/ai-toolkit.git
-cd ai-toolkit
+git clone https://github.com/PlagueKind/BlackTrainer.git
+cd BlackTrainer
 python -m venv venv
 .\venv\Scripts\activate
 pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
+chmod +x run_mac.zsh
+./run_mac.zsh
 ```
 
 
