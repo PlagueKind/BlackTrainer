@@ -29,6 +29,7 @@ git clone https://github.com/PlagueKind/BlackTrainer.git
 cd BlackTrainer
 python3.12 -m venv venv
 .\venv\Scripts\activate
+# install torch first cu130 for blackwell, otherwise you can use cu128
 pip install --no-cache-dir torch==2.13.0 torchvision==0.28.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 pip install -r requirements.txt
 cd ui
