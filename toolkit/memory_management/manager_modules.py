@@ -649,6 +649,7 @@ class LinearLayerMemoryManager(BaseLayerMemoryManager):
         else:
             self._original_forward = getattr(self.module, "forward")
 
+        @torch.compiler.disable
         def _mm_forward(x, *args, **kwargs):
             # ensure we only use expected signature (Linear: x)
             if args or kwargs:
@@ -660,6 +661,15 @@ class LinearLayerMemoryManager(BaseLayerMemoryManager):
             device = self.manager.process_device
 
             # NOTE: do NOT move params to device here; autograd fn streams & bounces them
+            #
+            # torch.compiler.disable forces dynamo to graph-break here instead of
+            # tracing into this custom autograd.Function. The bounce ring buffer
+            # relies on real-time cuda stream/event ordering (_DEVICE_STATE ring
+            # slots in this module) that a compiled/replayed graph doesn't
+            # reliably preserve call-to-call -- under block_compile this let
+            # compute consume a weight slot before its H2D copy event landed,
+            # producing NaNs. Running it eagerly keeps the ordering correct while
+            # the rest of the compiled block still traces normally.
             return _BouncingLinearFn.apply(x, weight_cpu, bias_cpu, device)
 
         if hasattr(self.module, "ara_lora_ref"):
